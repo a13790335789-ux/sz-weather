@@ -273,12 +273,31 @@ let swRegistration = null;
 async function registerSW() {
   if (!('serviceWorker' in navigator)) return;
   try {
-    swRegistration = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+    // 先注销所有旧SW
+    const oldRegs = await navigator.serviceWorker.getRegistrations();
+    for (const reg of oldRegs) {
+      await reg.unregister();
+    }
+
+    swRegistration = await navigator.serviceWorker.register('/sw.js?v=3', { scope: '/' });
+
+    // 检测SW更新
+    swRegistration.addEventListener('updatefound', () => {
+      const newSW = swRegistration.installing;
+      newSW.addEventListener('statechange', () => {
+        if (newSW.state === 'activated' && navigator.serviceWorker.controller) {
+          // 新SW激活了，刷新页面
+          window.location.reload();
+        }
+      });
+    });
+
     navigator.serviceWorker.addEventListener('message', event => {
       if (event.data?.type === 'weather-update') {
         updateUI(event.data.data);
       }
     });
+
     if ('periodicSync' in swRegistration) {
       try {
         await swRegistration.periodicSync.register('weather-check', {
@@ -287,6 +306,7 @@ async function registerSW() {
       } catch (e) {}
     }
   } catch (err) {
+    console.error('SW注册失败:', err);
     els.monitorStatus.textContent = '不可用';
     els.monitorStatus.classList.remove('on');
   }

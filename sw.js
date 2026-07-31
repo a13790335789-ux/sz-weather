@@ -11,12 +11,12 @@ self.addEventListener('install', event => {
 });
 
 self.addEventListener('activate', event => {
+  // 清除所有旧缓存
   event.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))
-    )
+    caches.keys().then(keys => Promise.all(keys.map(k => caches.delete(k))))
   );
-  self.clients.claim();
+  // 立即接管所有页面
+  event.waitUntil(self.clients.claim());
 });
 
 // 存储位置
