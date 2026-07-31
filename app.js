@@ -1,25 +1,36 @@
 /**
  * 深圳天气监测 App — 自动定位版
- * GPS精准定位到区 → 实时天气 + 推送通知
+ * 使用 Open-Meteo 免费API（无需Key）
  */
 
-// ========== 配置 ==========
-let QWEATHER_KEY = localStorage.getItem('qweather_key') || '';
-let currentPosition = null;  // { lat, lng, district, city }
+// ========== 天气图标 ==========
+function getIcon(code, isNight) {
+  const map = {
+    0: isNight ? '🌙' : '☀️',      // 晴
+    1: isNight ? '🌙' : '🌤',      // 少云
+    2: '⛅',                        // 多云
+    3: '☁️',                        // 阴
+    45: '🌫', 48: '🌫',            // 雾
+    51: '🌦', 53: '🌦', 55: '🌦',  // 小雨
+    61: '🌧', 63: '🌧', 65: '🌧',  // 雨
+    71: '🌨', 73: '🌨', 75: '🌨',  // 雪
+    80: '🌦', 81: '🌧', 82: '⛈',  // 阵雨
+    95: '⛈', 96: '⛈', 99: '⛈',   // 雷暴
+  };
+  return map[code] || '🌡';
+}
 
-// ========== 天气图标映射 ==========
-const WEATHER_ICONS = {
-  '晴': '☀️', '少云': '🌤', '晴间多云': '⛅', '多云': '☁️', '阴': '☁️',
-  '小雨': '🌧', '中雨': '🌧', '大雨': '🌧', '暴雨': '⛈', '大暴雨': '⛈',
-  '雷阵雨': '⛈', '阵雨': '🌦', '小雪': '🌨', '中雪': '🌨', '大雪': '❄️',
-  '雨夹雪': '🌨', '雾': '🌫', '霾': '🌫', '浮尘': '🌪', '沙尘暴': '🌪',
-  '大风': '💨', '台风': '🌀', '冰雹': '🧊',
-};
-function getIcon(text) {
-  for (const [key, icon] of Object.entries(WEATHER_ICONS)) {
-    if (text?.includes(key)) return icon;
-  }
-  return '🌡';
+function getWeatherText(code) {
+  const map = {
+    0:'晴',1:'少云',2:'多云',3:'阴',
+    45:'雾',48:'雾凇',
+    51:'毛毛雨',53:'小雨',55:'中雨',
+    61:'小雨',63:'中雨',65:'大雨',
+    71:'小雪',73:'中雪',75:'大雪',
+    80:'阵雨',81:'中阵雨',82:'暴雨',
+    95:'雷暴',96:'冰雹雷暴',99:'强雷暴',
+  };
+  return map[code] || '未知';
 }
 
 // ========== DOM 引用 ==========
@@ -50,13 +61,13 @@ const els = {
 };
 
 // ========== 初始化 ==========
+let currentPosition = null;
+let QWEATHER_KEY = localStorage.getItem('qweather_key') || '';
+
 document.addEventListener('DOMContentLoaded', () => {
-  if (!QWEATHER_KEY) {
-    els.setupOverlay.classList.remove('hidden');
-    setupKeyInput();
-  } else {
-    startApp();
-  }
+  // 不再需要API Key了，直接用Open-Meteo
+  els.setupOverlay.classList.add('hidden');
+  startApp();
 });
 
 function startApp() {
@@ -64,196 +75,171 @@ function startApp() {
   setupButtons();
   setupPeriodicCheck();
   checkInstallable();
-  setTimeout(() => sendKeyToSW(QWEATHER_KEY), 2000);
-  // 先定位，再查天气
   getLocation().then(() => fetchAllWeather());
 }
 
-// ========== GPS 定位（核心）==========
+// ========== GPS 定位 ==========
 async function getLocation() {
   els.locStatus.textContent = '定位中...';
 
   if (!navigator.geolocation) {
     els.locStatus.textContent = '浏览器不支持GPS';
-    useFallbackLocation();
+    useDefaultLocation();
     return;
   }
 
   try {
     const pos = await new Promise((resolve, reject) => {
       navigator.geolocation.getCurrentPosition(resolve, reject, {
-        enableHighAccuracy: true,  // GPS精确模式
+        enableHighAccuracy: true,
         timeout: 10000,
-        maximumAge: 5 * 60 * 1000, // 5分钟缓存
+        maximumAge: 5 * 60 * 1000,
       });
     });
 
-    const lat = pos.coords.latitude.toFixed(4);
-    const lng = pos.coords.longitude.toFixed(4);
-    currentPosition = { lat, lng };
+    currentPosition = {
+      lat: parseFloat(pos.coords.latitude.toFixed(4)),
+      lng: parseFloat(pos.coords.longitude.toFixed(4)),
+    };
 
-    // 用和风天气的反查API获取区级位置
-    await reverseGeocode(lat, lng);
+    // 反向地理编码获取区名（用免费的 nominatim）
+    await reverseGeocode(currentPosition.lat, currentPosition.lng);
 
   } catch (err) {
-    console.warn('GPS定位失败:', err.message);
-    els.locStatus.textContent = 'GPS失败，用IP定位';
-    useFallbackLocation();
+    console.warn('GPS失败:', err.message);
+    els.locStatus.textContent = 'GPS失败，使用IP定位';
+    useDefaultLocation();
   }
 }
 
-// ========== 逆向地理编码（经纬度→区名）==========
 async function reverseGeocode(lat, lng) {
   try {
-    const url = `https://api.qweather.com/v2/city/lookup?location=${lng},${lat}&key=${QWEATHER_KEY}&number=1`;
-    const resp = await fetch(url);
+    // 用Nominatim免费反向地理编码（OpenStreetMap）
+    const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=14&accept-language=zh`;
+    const resp = await fetch(url, { headers: { 'User-Agent': 'SZWeatherApp/1.0' } });
     const data = await resp.json();
 
-    if (data.code === '200' && data.location?.length > 0) {
-      const loc = data.location[0];
-      currentPosition = {
-        ...currentPosition,
-        district: loc.name || '',      // 如"南山"
-        city: loc.adm2 || loc.adm1 || '', // 如"深圳"
-        locationId: loc.id || '',      // 和风天气城市ID
-      };
+    if (data.address) {
+      const ad = data.address;
+      // 提取区名（深圳的区：南山/福田/罗湖/宝安/龙岗/龙华/盐田/坪山/光明）
+      const district = ad.district || ad.city_district || ad.suburb || ad.county || '';
+      const city = ad.city || ad.state || '深圳';
+
+      currentPosition.district = district.replace('区', '');
+      currentPosition.city = city.replace('市', '');
+
       els.cityName.textContent = currentPosition.city || '深圳';
       els.districtName.textContent = currentPosition.district || '';
       els.locStatus.textContent = '✅ GPS定位';
-      sendLocationToSW(); // 同步给后台Service Worker
-    } else {
-      useFallbackLocation();
     }
   } catch (e) {
     console.warn('反查失败:', e);
-    useFallbackLocation();
+    useDefaultLocation();
   }
 }
 
-// ========== 兜底：IP定位 ==========
-async function useFallbackLocation() {
-  try {
-    // 用和风天气的IP定位
-    const resp = await fetch(`https://api.qweather.com/v2/city/lookup?key=${QWEATHER_KEY}&q=深圳`);
-    const data = await resp.json();
-    if (data.code === '200' && data.location?.length > 0) {
-      const loc = data.location[0];
-      currentPosition = {
-        lat: loc.lat, lng: loc.lon,
-        district: '深圳',
-        city: '深圳',
-        locationId: loc.id || '101280601',
-      };
-      els.cityName.textContent = '深圳';
-      els.districtName.textContent = '(IP定位)';
-      els.locStatus.textContent = '📡 IP定位';
-    }
-  } catch (e) {
-    // 最终兜底：深圳默认
-    currentPosition = {
-      lat: '22.54', lng: '114.06',
-      district: '深圳',
-      city: '深圳',
-      locationId: '101280601',
-    };
-    els.cityName.textContent = '深圳';
-    els.districtName.textContent = '';
-    els.locStatus.textContent = '📌 默认深圳';
-  }
+function useDefaultLocation() {
+  currentPosition = { lat: 22.5431, lng: 114.0579, city: '深圳', district: '' };
+  els.cityName.textContent = '深圳';
+  els.locStatus.textContent = '📌 默认深圳';
 }
 
-// ========== 天气数据获取（用位置ID或坐标）==========
+// ========== 获取天气（Open-Meteo，无需Key）==========
 async function fetchAllWeather() {
   els.updateTime.textContent = '更新中...';
 
   if (!currentPosition) {
-    els.updateTime.textContent = '等待GPS定位...';
-    return;
+    els.updateTime.textContent = '等待定位...';
+    return null;
   }
 
-  const loc = currentPosition.locationId ||
-    `${currentPosition.lng},${currentPosition.lat}`;
-
-  // 调试：显示请求参数
-  console.log('请求天气:', { loc, key: QWEATHER_KEY.slice(0,8) + '...' });
-
   try {
-    const [nowResp, hourlyResp, warningResp] = await Promise.all([
-      fetch(`https://api.qweather.com/v7/weather/now?location=${loc}&key=${QWEATHER_KEY}`),
-      fetch(`https://api.qweather.com/v7/weather/24h?location=${loc}&key=${QWEATHER_KEY}`),
-      fetch(`https://api.qweather.com/v7/warning/now?location=${loc}&key=${QWEATHER_KEY}`),
-    ]);
+    const { lat, lng } = currentPosition;
 
-    const now = await nowResp.json();
-    const hourly = await hourlyResp.json();
-    const warning = await warningResp.json();
+    // Open-Meteo: 免费、无需Key、全球覆盖
+    // 参数说明: hourly降水概率需要额外参数
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m,wind_direction_10m&hourly=temperature_2m,precipitation_probability,weather_code,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=auto&forecast_days=2`;
 
-    // 显示API状态（调试用）
-    console.log('API返回:', { nowCode: now.code, hourlyCode: hourly.code, warningCode: warning.code });
+    const resp = await fetch(url);
+    const data = await resp.json();
 
-    // 检查API是否正常
-    if (now.code !== '200') {
-      els.updateTime.textContent = `API错误: ${now.code || '未知'}`;
-      els.weatherText.textContent = '请检查API Key是否正确';
-      console.error('API错误:', now);
-      return null;
-    }
-
-    updateUI({ now, hourly, warning });
+    updateUI(data);
 
     const d = new Date();
     els.updateTime.textContent = `更新于 ${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}`;
 
-    return { now, hourly, warning, position: currentPosition };
+    return data;
   } catch (err) {
-    console.error('获取天气失败:', err);
-    els.updateTime.textContent = `网络错误: ${err.message}`;
-    els.weatherText.textContent = '请检查网络连接';
+    console.error('天气获取失败:', err);
+    els.updateTime.textContent = `错误: ${err.message}`;
     return null;
   }
 }
 
 // ========== UI 更新 ==========
 function updateUI(data) {
-  const { now, hourly, warning } = data;
-
   // --- 当前天气 ---
-  if (now?.code === '200' && now.now) {
-    const n = now.now;
-    els.currentTemp.textContent = n.temp || '--';
-    els.weatherText.textContent = n.text || '--';
-    els.feelLike.textContent = `体感 ${n.feelsLike || '--'}°C`;
-    els.humidity.textContent = `${n.humidity || '--'}%`;
-    els.wind.textContent = `${n.windScale || '--'}级 ${n.windDir || ''}`;
-    els.vis.textContent = `${n.vis || '--'}km`;
+  if (data.current) {
+    const c = data.current;
+    const isNight = new Date().getHours() < 6 || new Date().getHours() >= 19;
+    els.currentTemp.textContent = Math.round(c.temperature_2m);
+    els.weatherText.textContent = getWeatherText(c.weather_code);
+    els.feelLike.textContent = `体感 ${Math.round(c.apparent_temperature)}°C`;
+    els.humidity.textContent = `${c.relative_humidity_2m}%`;
+    els.wind.textContent = `${c.wind_speed_10m} km/h`;
+    els.vis.textContent = '--';
   }
 
   // --- 24小时预报 ---
-  const hourlies = hourly?.hourly || [];
-  if (hourlies.length > 0) {
-    els.hourlyScroll.innerHTML = hourlies.slice(0, 24).map(h => {
-      const time = (h.fxTime || '').split('T')[1]?.slice(0, 5) || '';
-      return `
-        <div class="hour-item">
-          <div class="time">${time || '--'}</div>
-          <div class="icon">${getIcon(h.text)}</div>
-          <div class="temp">${h.temp}°</div>
-          ${h.pop > 0 ? `<div class="rain-chance">💧${h.pop}%</div>` : ''}
-        </div>`;
-    }).join('');
+  if (data.hourly) {
+    const nowHour = new Date().getHours();
+    const hours = data.hourly.time
+      .map((t, i) => ({
+        time: t.split('T')[1]?.slice(0, 5) || '',
+        temp: Math.round(data.hourly.temperature_2m[i]),
+        code: data.hourly.weather_code[i],
+        pop: data.hourly.precipitation_probability[i] || 0,
+        wind: data.hourly.wind_speed_10m[i] || 0,
+      }))
+      .slice(nowHour, nowHour + 24);
+
+    const isNight = new Date().getHours() >= 18 || new Date().getHours() < 6;
+
+    els.hourlyScroll.innerHTML = hours.map(h => `
+      <div class="hour-item">
+        <div class="time">${h.time}</div>
+        <div class="icon">${getIcon(h.code, isNight)}</div>
+        <div class="temp">${h.temp}°</div>
+        ${h.pop > 20 ? `<div class="rain-chance">💧${h.pop}%</div>` : ''}
+        ${h.wind >= 25 ? `<div style="font-size:10px;color:#f59e0b;">💨${h.wind}</div>` : ''}
+      </div>
+    `).join('');
   }
 
-  // --- 气象预警 ---
-  const warnings = warning?.warning || [];
-  if (warnings.length > 0 && warning?.code === '200') {
-    els.warningSection.classList.remove('hidden');
-    els.warningCard.innerHTML = warnings.map(w =>
-      `<div style="font-weight:bold;margin-bottom:4px;">⚠️ ${w.typeName || '气象预警'} — ${w.level || ''}</div>
-       <div>${w.text || ''}</div>
-       <div style="font-size:12px;opacity:0.5;margin-top:4px;">发布时间: ${w.pubTime || ''}</div>`
-    ).join('<hr style="opacity:0.15;margin:10px 0;">');
-  } else {
-    els.warningSection.classList.add('hidden');
+  // --- 天气预警（Open-Meteo没有，隐藏）---
+  els.warningSection.classList.add('hidden');
+
+  // --- 未来几天摘要 ---
+  if (data.daily) {
+    const today = data.daily;
+    const tomorrowMax = Math.round(today.temperature_2m_max[1]);
+    const tomorrowMin = Math.round(today.temperature_2m_min[1]);
+    const rainProb = today.precipitation_probability_max[1] || 0;
+
+    let alert = '';
+    if (rainProb >= 60) alert = '⚠️ 明天降雨概率高';
+    else if (tomorrowMax >= 35) alert = '🔥 明天高温';
+    else if (tomorrowMax <= 15) alert = '🥶 明天降温';
+    else alert = '✅ 明天天气正常';
+
+    // 在预警区显示明日摘要
+    if (alert.includes('⚠️') || alert.includes('🔥') || alert.includes('🥶')) {
+      els.warningSection.classList.remove('hidden');
+      els.warningCard.innerHTML = `
+        <div style="font-weight:bold;margin-bottom:4px;">📅 ${alert}</div>
+        <div>明天 ${tomorrowMin}°C ~ ${tomorrowMax}°C · 降雨概率 ${rainProb}%</div>
+      `;
+    }
   }
 }
 
@@ -266,7 +252,7 @@ function setupPeriodicCheck() {
 
   checkTimer = setInterval(async () => {
     await requestNotificationPermission();
-    await getLocation();  // 重新定位
+    await getLocation();
     const data = await fetchAllWeather();
     if (data && swRegistration) {
       const sw = swRegistration.active || swRegistration.installing;
@@ -298,30 +284,11 @@ async function registerSW() {
         await swRegistration.periodicSync.register('weather-check', {
           minInterval: 30 * 60 * 1000,
         });
-      } catch (e) { /* 静默失败 */ }
+      } catch (e) {}
     }
   } catch (err) {
     els.monitorStatus.textContent = '不可用';
     els.monitorStatus.classList.remove('on');
-  }
-}
-
-function sendKeyToSW(key) {
-  if (!swRegistration) return;
-  const sw = swRegistration.active || swRegistration.installing;
-  if (sw) sw.postMessage({ type: 'set-api-key', key });
-}
-
-function sendLocationToSW() {
-  if (!swRegistration || !currentPosition) return;
-  const sw = swRegistration.active || swRegistration.installing;
-  if (sw) {
-    sw.postMessage({
-      type: 'set-location',
-      locationId: currentPosition.locationId,
-      lat: currentPosition.lat,
-      lng: currentPosition.lng,
-    });
   }
 }
 
@@ -343,26 +310,6 @@ function setupButtons() {
     await fetchAllWeather();
     els.btnRefresh.textContent = '🔄 刷新定位+天气';
     els.btnRefresh.disabled = false;
-  });
-}
-
-// ========== API Key设置 ==========
-function setupKeyInput() {
-  els.btnSaveKey.addEventListener('click', () => {
-    const key = els.apiKeyInput.value.trim();
-    if (!key || key.length < 10) {
-      els.keyError.style.display = 'block';
-      els.keyError.textContent = 'Key格式不正确，请检查';
-      return;
-    }
-    localStorage.setItem('qweather_key', key);
-    QWEATHER_KEY = key;
-    els.setupOverlay.classList.add('hidden');
-    sendKeyToSW(key);
-    startApp();
-  });
-  els.apiKeyInput.addEventListener('keydown', e => {
-    if (e.key === 'Enter') els.btnSaveKey.click();
   });
 }
 
@@ -389,5 +336,4 @@ function checkInstallable() {
   }
 }
 
-// 1分钟后请求通知权限
 setTimeout(requestNotificationPermission, 60000);
