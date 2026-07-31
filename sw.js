@@ -68,9 +68,9 @@ async function checkWeatherAndNotify() {
   try {
     // 并行请求：实时天气 + 24h预报 + 预警
     const [now, hourly, warning] = await Promise.all([
-      fetch(`https://devapi.qweather.com/v7/weather/now?location=${watchLocation}&key=${apiKey}`).then(r => r.json()),
-      fetch(`https://devapi.qweather.com/v7/weather/24h?location=${watchLocation}&key=${apiKey}`).then(r => r.json()),
-      fetch(`https://devapi.qweather.com/v7/warning/now?location=${watchLocation}&key=${apiKey}`).then(r => r.json()),
+      fetch(`https://api.qweather.com/v7/weather/now?location=${watchLocation}&key=${apiKey}`).then(r => r.json()),
+      fetch(`https://api.qweather.com/v7/weather/24h?location=${watchLocation}&key=${apiKey}`).then(r => r.json()),
+      fetch(`https://api.qweather.com/v7/warning/now?location=${watchLocation}&key=${apiKey}`).then(r => r.json()),
     ]);
 
     const currentData = { now, hourly, warning, timestamp: Date.now() };

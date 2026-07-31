@@ -105,7 +105,7 @@ async function getLocation() {
 // ========== 逆向地理编码（经纬度→区名）==========
 async function reverseGeocode(lat, lng) {
   try {
-    const url = `https://geoapi.qweather.com/v2/city/lookup?location=${lng},${lat}&key=${QWEATHER_KEY}&number=1`;
+    const url = `https://api.qweather.com/v2/city/lookup?location=${lng},${lat}&key=${QWEATHER_KEY}&number=1`;
     const resp = await fetch(url);
     const data = await resp.json();
 
@@ -134,7 +134,7 @@ async function reverseGeocode(lat, lng) {
 async function useFallbackLocation() {
   try {
     // 用和风天气的IP定位
-    const resp = await fetch(`https://geoapi.qweather.com/v2/city/lookup?key=${QWEATHER_KEY}&q=深圳`);
+    const resp = await fetch(`https://api.qweather.com/v2/city/lookup?key=${QWEATHER_KEY}&q=深圳`);
     const data = await resp.json();
     if (data.code === '200' && data.location?.length > 0) {
       const loc = data.location[0];
@@ -179,9 +179,9 @@ async function fetchAllWeather() {
 
   try {
     const [nowResp, hourlyResp, warningResp] = await Promise.all([
-      fetch(`https://devapi.qweather.com/v7/weather/now?location=${loc}&key=${QWEATHER_KEY}`),
-      fetch(`https://devapi.qweather.com/v7/weather/24h?location=${loc}&key=${QWEATHER_KEY}`),
-      fetch(`https://devapi.qweather.com/v7/warning/now?location=${loc}&key=${QWEATHER_KEY}`),
+      fetch(`https://api.qweather.com/v7/weather/now?location=${loc}&key=${QWEATHER_KEY}`),
+      fetch(`https://api.qweather.com/v7/weather/24h?location=${loc}&key=${QWEATHER_KEY}`),
+      fetch(`https://api.qweather.com/v7/warning/now?location=${loc}&key=${QWEATHER_KEY}`),
     ]);
 
     const now = await nowResp.json();
