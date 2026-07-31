@@ -167,20 +167,37 @@ async function fetchAllWeather() {
   els.updateTime.textContent = '更新中...';
 
   if (!currentPosition) {
-    console.warn('位置未知，等待定位...');
+    els.updateTime.textContent = '等待GPS定位...';
     return;
   }
 
-  // 优先用locationId，否则用坐标
   const loc = currentPosition.locationId ||
     `${currentPosition.lng},${currentPosition.lat}`;
 
+  // 调试：显示请求参数
+  console.log('请求天气:', { loc, key: QWEATHER_KEY.slice(0,8) + '...' });
+
   try {
-    const [now, hourly, warning] = await Promise.all([
-      fetch(`https://devapi.qweather.com/v7/weather/now?location=${loc}&key=${QWEATHER_KEY}`).then(r => r.json()),
-      fetch(`https://devapi.qweather.com/v7/weather/24h?location=${loc}&key=${QWEATHER_KEY}`).then(r => r.json()),
-      fetch(`https://devapi.qweather.com/v7/warning/now?location=${loc}&key=${QWEATHER_KEY}`).then(r => r.json()),
+    const [nowResp, hourlyResp, warningResp] = await Promise.all([
+      fetch(`https://devapi.qweather.com/v7/weather/now?location=${loc}&key=${QWEATHER_KEY}`),
+      fetch(`https://devapi.qweather.com/v7/weather/24h?location=${loc}&key=${QWEATHER_KEY}`),
+      fetch(`https://devapi.qweather.com/v7/warning/now?location=${loc}&key=${QWEATHER_KEY}`),
     ]);
+
+    const now = await nowResp.json();
+    const hourly = await hourlyResp.json();
+    const warning = await warningResp.json();
+
+    // 显示API状态（调试用）
+    console.log('API返回:', { nowCode: now.code, hourlyCode: hourly.code, warningCode: warning.code });
+
+    // 检查API是否正常
+    if (now.code !== '200') {
+      els.updateTime.textContent = `API错误: ${now.code || '未知'}`;
+      els.weatherText.textContent = '请检查API Key是否正确';
+      console.error('API错误:', now);
+      return null;
+    }
 
     updateUI({ now, hourly, warning });
 
@@ -190,7 +207,9 @@ async function fetchAllWeather() {
     return { now, hourly, warning, position: currentPosition };
   } catch (err) {
     console.error('获取天气失败:', err);
-    els.updateTime.textContent = '更新失败';
+    els.updateTime.textContent = `网络错误: ${err.message}`;
+    els.weatherText.textContent = '请检查网络连接';
+    return null;
   }
 }
 
