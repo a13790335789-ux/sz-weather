@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#0f172a">
+  <title>深圳天气监测</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- 当前天气主卡片 -->
+  <div class="header">
+    <div class="city-row">
+      <h1>📍 <span id="cityName">深圳</span><span id="districtName" style="font-size:16px;font-weight:400;color:#94a3b8;margin-left:4px;"></span></h1>
+      <span class="update-time" id="updateTime">等待定位...</span>
+    </div>
+    <div class="loc-indicator" id="locStatus">📡 定位中...</div>
+  </div>
+
+  <div class="main-card" id="mainCard">
+    <div class="temp-section">
+      <span class="temp" id="currentTemp">--</span>
+      <span class="unit">°C</span>
+    </div>
+    <div class="weather-text" id="weatherText">加载中...</div>
+    <div class="feel-like" id="feelLike">体感 --°C</div>
+    <div class="detail-row">
+      <div class="detail-item">
+        <span class="label">💧 湿度</span>
+        <span class="value" id="humidity">--%</span>
+      </div>
+      <div class="detail-item">
+        <span class="label">💨 风力</span>
+        <span class="value" id="wind">--级</span>
+      </div>
+      <div class="detail-item">
+        <span class="label">👁 能见度</span>
+        <span class="value" id="vis">--km</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 预警区域 -->
+  <div class="warning-section hidden" id="warningSection">
+    <div class="warning-card" id="warningCard"></div>
+  </div>
+
+  <!-- 24小时预报 -->
+  <div class="section-title">⏰ 未来24小时</div>
+  <div class="hourly-scroll" id="hourlyScroll">
+    <div class="hourly-loading">加载中...</div>
+  </div>
+
+  <!-- 通知设置 -->
+  <div class="section-title">🔔 监测状态</div>
+  <div class="status-card">
+    <div class="status-row">
+      <span>后台天气监测</span>
+      <span class="status-badge on" id="monitorStatus">运行中</span>
+    </div>
+    <div class="status-row">
+      <span>下次检查</span>
+      <span id="nextCheck">--</span>
+    </div>
+    <div class="status-row">
+      <span>上次通知</span>
+      <span id="lastNotify">暂无</span>
+    </div>
+  </div>
+
+  <!-- API Key 设置对话框 -->
+  <div class="setup-overlay hidden" id="setupOverlay">
+    <div class="setup-card">
+      <h2>🔑 设置API Key</h2>
+      <p style="color:#94a3b8;font-size:13px;margin:8px 0 16px;">
+        使用和风天气免费API<br>
+        1. 访问 <b>dev.qweather.com</b> 注册<br>
+        2. 创建项目获取 API Key<br>
+        3. 粘贴到下方
+      </p>
+      <input type="text" id="apiKeyInput" placeholder="粘贴你的和风天气 API Key" class="key-input">
+      <button class="btn" id="btnSaveKey" style="margin-top:12px;">💾 保存</button>
+      <p id="keyError" style="color:#ef4444;font-size:12px;margin-top:8px;display:none;"></p>
+    </div>
+  </div>
+
+  <!-- 底部操作 -->
+  <div class="actions">
+    <button class="btn" id="btnRefresh">🔄 立即刷新</button>
+    <button class="btn btn-outline" id="btnInstall" style="display:none;">📲 添加到桌面</button>
+  </div>
+
+  <div class="footer">
+    数据来源：和风天气 · 仅用于个人参考
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

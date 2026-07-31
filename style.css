@@ -1,0 +1,262 @@
+/* 深圳天气监测 — 深色主题样式 */
+:root {
+  --bg: #0f172a;
+  --card: #1e293b;
+  --text: #f1f5f9;
+  --sub: #94a3b8;
+  --accent: #0ea5e9;
+  --danger: #ef4444;
+  --warn: #f59e0b;
+  --success: #22c55e;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  padding: 16px;
+  padding-top: max(16px, env(safe-area-inset-top));
+  padding-bottom: max(16px, env(safe-area-inset-bottom));
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
+/* 头部 */
+.header {
+  padding: 8px 0 16px;
+}
+.city-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.city-row h1 {
+  font-size: 20px;
+  font-weight: 600;
+}
+.update-time {
+  font-size: 12px;
+  color: var(--sub);
+}
+.loc-indicator {
+  font-size: 11px;
+  color: var(--success);
+  margin-top: 4px;
+}
+
+/* 主天气卡片 */
+.main-card {
+  background: linear-gradient(135deg, #1e3a5f 0%, #1e293b 100%);
+  border-radius: 20px;
+  padding: 28px 24px;
+  text-align: center;
+  margin-bottom: 16px;
+  border: 1px solid rgba(255,255,255,0.05);
+}
+.temp-section {
+  margin-bottom: 4px;
+}
+.temp {
+  font-size: 72px;
+  font-weight: 200;
+  color: #fff;
+  line-height: 1;
+}
+.unit {
+  font-size: 24px;
+  color: var(--sub);
+  vertical-align: super;
+}
+.weather-text {
+  font-size: 18px;
+  margin-bottom: 4px;
+}
+.feel-like {
+  font-size: 13px;
+  color: var(--sub);
+  margin-bottom: 20px;
+}
+.detail-row {
+  display: flex;
+  justify-content: space-around;
+  border-top: 1px solid rgba(255,255,255,0.08);
+  padding-top: 16px;
+}
+.detail-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.detail-item .label {
+  font-size: 12px;
+  color: var(--sub);
+}
+.detail-item .value {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+/* 预警卡片 */
+.warning-section { margin-bottom: 16px; }
+.warning-section.hidden { display: none; }
+.warning-card {
+  background: var(--danger);
+  border-radius: 14px;
+  padding: 16px;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+/* 24小时预报 */
+.section-title {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 12px;
+  margin-top: 4px;
+}
+.hourly-scroll {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+  margin-bottom: 20px;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.hourly-scroll::-webkit-scrollbar { display: none; }
+
+.hour-item {
+  flex: 0 0 70px;
+  background: var(--card);
+  border-radius: 14px;
+  padding: 14px 10px;
+  text-align: center;
+  border: 1px solid rgba(255,255,255,0.04);
+}
+.hour-item .time {
+  font-size: 12px;
+  color: var(--sub);
+  margin-bottom: 8px;
+}
+.hour-item .icon {
+  font-size: 24px;
+  margin-bottom: 6px;
+}
+.hour-item .temp {
+  font-size: 15px;
+  font-weight: 600;
+}
+.hour-item .rain-chance {
+  font-size: 11px;
+  color: var(--accent);
+  margin-top: 4px;
+}
+
+/* 监测状态 */
+.status-card {
+  background: var(--card);
+  border-radius: 14px;
+  padding: 16px;
+  margin-bottom: 20px;
+  border: 1px solid rgba(255,255,255,0.04);
+}
+.status-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  font-size: 14px;
+}
+.status-row:not(:last-child) {
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+.status-badge {
+  font-size: 12px;
+  padding: 3px 10px;
+  border-radius: 10px;
+}
+.status-badge.on {
+  background: rgba(34,197,94,0.15);
+  color: var(--success);
+}
+
+/* 按钮 */
+.actions {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.btn {
+  flex: 1;
+  padding: 14px;
+  border: none;
+  border-radius: 14px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  background: var(--accent);
+  color: #fff;
+  transition: opacity 0.2s;
+}
+.btn:active { opacity: 0.7; }
+.btn-outline {
+  background: transparent;
+  border: 1px solid var(--sub);
+  color: var(--text);
+}
+
+.footer {
+  text-align: center;
+  font-size: 12px;
+  color: rgba(255,255,255,0.2);
+  padding: 20px 0;
+}
+
+.hourly-loading {
+  color: var(--sub);
+  padding: 20px;
+  font-size: 14px;
+}
+
+/* ===== 设置覆盖层 ===== */
+.setup-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  padding: 20px;
+}
+.setup-overlay.hidden { display: none; }
+.setup-card {
+  background: var(--card);
+  border-radius: 20px;
+  padding: 28px 24px;
+  max-width: 360px;
+  width: 100%;
+  text-align: center;
+  border: 1px solid rgba(255,255,255,0.1);
+}
+.setup-card h2 {
+  font-size: 20px;
+  margin-bottom: 4px;
+}
+.key-input {
+  width: 100%;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.1);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 14px;
+  outline: none;
+  text-align: center;
+}
+.key-input:focus {
+  border-color: var(--accent);
+}
