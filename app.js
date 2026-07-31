@@ -66,7 +66,6 @@ let QWEATHER_KEY = localStorage.getItem('qweather_key') || '';
 
 document.addEventListener('DOMContentLoaded', () => {
   // 不再需要API Key了，直接用Open-Meteo
-  els.setupOverlay.classList.add('hidden');
   startApp();
 });
 
